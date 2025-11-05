@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/roydevashish/queuectl/cmd"
 
 func main() {
-	fmt.Println("welcome to queuectl")
+	cmd.Execute()
 }
