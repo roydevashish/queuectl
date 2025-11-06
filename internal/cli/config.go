@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	clilogger "github.com/roydevashish/queuectl/internal/cli_logger"
+	"github.com/roydevashish/queuectl/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +28,13 @@ Changes take effect on next worker start.`,
 	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		key, value := args[0], args[1]
-		clilogger.LogSuccess(fmt.Sprint(key, ":", value))
+
+		_, err := storage.DB.Exec(`INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)`, key, value)
+		if err != nil {
+			clilogger.LogError("unable to set configuration")
+			return
+		}
+		clilogger.LogSuccess(fmt.Sprint("set config ", key, ":", value))
 	},
 }
 
