@@ -58,7 +58,22 @@ var retryCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		jobID := args[0]
 
-		clilogger.LogAlert(fmt.Sprint("retry dlq job: ", jobID))
+		result, err := storage.DB.Exec(`
+			UPDATE jobs SET state='pending', attempts=0, next_retry_at=NULL, updated_at=datetime('now', '+05 hours', '+30 minutes')
+			WHERE id=? AND state='dead' RETURNING id
+    `, jobID)
+		if err != nil {
+			clilogger.LogError(err.Error())
+			return
+		}
+
+		rowCount, _ := result.RowsAffected()
+		if rowCount == 0 {
+			clilogger.LogError(fmt.Sprint("invalid job id: ", jobID))
+			return
+		}
+
+		clilogger.LogInfo(fmt.Sprint("job moved back to pending with job id:", jobID))
 	},
 }
 
