@@ -1,9 +1,11 @@
 package cli
 
 import (
-	"fmt"
+	"os"
+	"strconv"
 
-	clilogger "github.com/roydevashish/queuectl/internal/cli_logger"
+	"github.com/aquasecurity/table"
+	"github.com/roydevashish/queuectl/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +17,27 @@ columns: ID, Command, State, Attempts, Created At.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		state, _ := cmd.Flags().GetString("state")
-		clilogger.LogInfo(fmt.Sprint("show job list state:", state))
+		query := `SELECT id, command, state, attempts, created_at FROM jobs`
+		if state != "" {
+			query += ` WHERE state = '` + state + `'`
+		}
+		query += ` ORDER BY created_at DESC LIMIT 20`
+
+		rows, _ := storage.DB.Query(query)
+		defer rows.Close()
+
+		t := table.New(os.Stdout)
+		t.SetHeaders("id", "command", "state", "attempts", "created at")
+
+		for rows.Next() {
+			var id, command, state string
+			var attempts int
+			var created string
+			rows.Scan(&id, &command, &state, &attempts, &created)
+			t.AddRow(id, command, state, strconv.Itoa(attempts), created)
+		}
+
+		t.Render()
 	},
 }
 
