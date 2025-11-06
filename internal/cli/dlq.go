@@ -2,8 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 
+	"github.com/aquasecurity/table"
 	clilogger "github.com/roydevashish/queuectl/internal/cli_logger"
+	"github.com/roydevashish/queuectl/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +28,23 @@ var listCmd = &cobra.Command{
 Includes failure reason, last error message, and full job payload.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		clilogger.LogSuccess("show dlq list")
+		query := `SELECT id, command, state, attempts, created_at FROM jobs WHERE state = 'dead'`
+
+		rows, _ := storage.DB.Query(query)
+		defer rows.Close()
+
+		t := table.New(os.Stdout)
+		t.SetHeaders("id", "command", "state", "attempts", "created at")
+
+		for rows.Next() {
+			var id, command, state string
+			var attempts int
+			var created string
+			rows.Scan(&id, &command, &state, &attempts, &created)
+			t.AddRow(id, command, state, strconv.Itoa(attempts), created)
+		}
+
+		t.Render()
 	},
 }
 
