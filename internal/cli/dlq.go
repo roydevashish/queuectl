@@ -60,7 +60,7 @@ var retryCmd = &cobra.Command{
 
 		result, err := storage.DB.Exec(`
 			UPDATE jobs SET state='pending', attempts=0, next_retry_at=NULL, updated_at=datetime('now', '+05 hours', '+30 minutes')
-			WHERE id=? AND state='dead' RETURNING id
+			WHERE id=? AND state='dead'
     `, jobID)
 		if err != nil {
 			clilogger.LogError(err.Error())
