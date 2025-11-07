@@ -6,11 +6,11 @@ import (
 	"syscall"
 )
 
-func WritePID(file string) error {
-	return os.WriteFile(file, []byte(strconv.Itoa(os.Getpid())), 0644)
+func WriteFile(file string, data string) error {
+	return os.WriteFile(file, []byte(data), 0644)
 }
 
-func ReadPID(file string) (int, error) {
+func ReadFile(file string) (int, error) {
 	b, err := os.ReadFile(file)
 	if err != nil {
 		return 0, err
@@ -19,7 +19,7 @@ func ReadPID(file string) (int, error) {
 }
 
 func IsRunning(pidFile string) (bool, int) {
-	pid, err := ReadPID(pidFile)
+	pid, err := ReadFile(pidFile)
 	if err != nil {
 		return false, 0
 	}
@@ -31,4 +31,18 @@ func IsRunning(pidFile string) (bool, int) {
 		return false, 0
 	}
 	return true, pid
+}
+
+func ActiveWorkers() int {
+	running, _ := IsRunning("pid")
+	if !running {
+		return 0
+	}
+
+	workerCount, err := ReadFile("worker")
+	if err != nil {
+		return 0
+	}
+
+	return workerCount
 }

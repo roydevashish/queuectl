@@ -7,6 +7,7 @@ import (
 	"github.com/aquasecurity/table"
 	clilogger "github.com/roydevashish/queuectl/internal/cli_logger"
 	"github.com/roydevashish/queuectl/internal/storage"
+	"github.com/roydevashish/queuectl/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ var StatusCmd = &cobra.Command{
 		}
 
 		// need to fetch active workers
-		activeWorkers := strconv.Itoa(4)
+		activeWorkers := strconv.Itoa(utils.ActiveWorkers())
 
 		clilogger.LogInfo("status")
 		t := table.New(os.Stdout)

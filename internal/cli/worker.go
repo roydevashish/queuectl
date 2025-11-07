@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 
@@ -44,8 +45,13 @@ limits, poll intervals, and visibility timeouts.`,
 			return
 		}
 
-		if err := utils.WritePID("pid"); err != nil {
+		if err := utils.WriteFile("pid", strconv.Itoa(os.Getpid())); err != nil {
 			clilogger.LogError("unable to start workers")
+			return
+		}
+
+		if err := utils.WriteFile("worker", strconv.Itoa(workerCount)); err != nil {
+			clilogger.LogError("unable to write workers count")
 			return
 		}
 
