@@ -2,8 +2,14 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	clilogger "github.com/roydevashish/queuectl/internal/cli_logger"
+	"github.com/roydevashish/queuectl/internal/utils"
+	"github.com/roydevashish/queuectl/internal/worker"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +35,50 @@ limits, poll intervals, and visibility timeouts.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		workerCount, _ := cmd.Flags().GetInt("count")
-		clilogger.LogSuccess(fmt.Sprint("start #", workerCount, " workers"))
+		if workerCount <= 0 {
+			clilogger.LogError("no of workers must be greater or equal to 1")
+		}
+
+		if running, _ := utils.IsRunning("pid"); running {
+			clilogger.LogError("workers already running")
+			return
+		}
+
+		if err := utils.WritePID("pid"); err != nil {
+			clilogger.LogError("unable to start workers")
+			return
+		}
+
+		jobChan := make(chan string, 2*workerCount)
+		shutdown := make(chan struct{})
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+		go worker.StartScheduler(jobChan, shutdown)
+
+		var wg sync.WaitGroup
+		for i := 1; i <= workerCount; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				clilogger.LogInfo(fmt.Sprint("worker started with id: ", id))
+				for {
+					select {
+					case jobID := <-jobChan:
+						worker.ExecuteJob(jobID)
+					case <-shutdown:
+						return
+					}
+				}
+			}(i)
+		}
+
+		clilogger.LogInfo(fmt.Sprint("starting total #", workerCount, " workers, press Ctrl+C to stop"))
+		<-sig
+		clilogger.LogInfo("workers shutting down")
+		close(shutdown)
+		wg.Wait()
+		clilogger.LogSuccess("all workers shutdown")
 	},
 }
 
@@ -41,7 +90,15 @@ jobs to complete before shutdown. Workers finish their current job,
 commit results, and then exit.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("stop all workers")
+		running, processId := utils.IsRunning("pid")
+		if !running {
+			clilogger.LogError("no workers are running right now")
+			return
+		}
+
+		process, _ := os.FindProcess(processId)
+		process.Signal(syscall.SIGINT)
+		clilogger.LogSuccess("stoping all workers")
 	},
 }
 
