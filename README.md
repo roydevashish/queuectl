@@ -126,7 +126,7 @@ The database file `queuectl.db` will be created automatically in the current dir
 
 ./queuectl dlq retry failjob
 # Output: Job failjob moved back to pending
-# Need this output
+# 2025/11/08 19:45:51 INFO 	ℹ️ job moved back to pending with job id:bad
 ```
 
 ### 6. Configuration
@@ -198,6 +198,44 @@ The database file `queuectl.db` will be created automatically in the current dir
 ./queuectl worker stop
 # Output:
 # 2025/11/08 19:54:32 INFO 	✅ stoping all workers
+```
+
+## Project Structure
+```text
+|-- cmd
+|   |-- root.go
+|
+|-- internal
+|   |-- cli
+|   |   |-- config.go
+|   |   |-- dlq.go
+|   |   |-- enqueue.go
+|   |   |-- init.go
+|   |   |-- list.go
+|   |   |-- status.go
+|   |   |-- worker.go
+|   |
+|   |-- cli_logger
+|   |   |-- cli_logger.go
+|   |
+|   |-- storage
+|   |   |-- storage.go
+|   |
+|   |-- types
+|   |   |-- enqueue_payload.go
+|   |
+|   |-- utils
+|   |   |-- utils.go
+|   |
+|   |-- worker
+|       |-- executor.go
+|       |-- schedular.go
+|
+|-- go.mod
+|-- go.sum
+|-- main.go
+|-- README.md
+|-- queuectl.db
 ```
 
 ## Architecture Overview
