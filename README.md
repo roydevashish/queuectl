@@ -223,6 +223,7 @@ The database file `queuectl.db` will be created automatically in the current dir
 |   |
 |   |-- types
 |   |   |-- enqueue_payload.go
+|   |   |-- job.go
 |   |
 |   |-- utils
 |   |   |-- utils.go
