@@ -29,11 +29,11 @@ Changes take effect on next worker start.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		key, value := args[0], args[1]
 
-		_, err := storage.DB.Exec(`INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)`, key, value)
-		if err != nil {
-			clilogger.LogError("unable to set configuration")
+		if err := storage.SetConfig(key, value); err != nil {
+			clilogger.LogError(err.Error())
 			return
 		}
+
 		clilogger.LogSuccess(fmt.Sprint("set config ", key, ":", value))
 	},
 }

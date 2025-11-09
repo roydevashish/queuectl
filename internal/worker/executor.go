@@ -10,56 +10,34 @@ import (
 )
 
 func ExecuteJob(jobID string) {
-	var command string
-	var attempts, maxRetries, baseBackoff int
-
-	err := storage.DB.QueryRow(`
-		SELECT command, attempts, max_retries, base_backoff 
-		FROM jobs 
-		WHERE id=?
-  `, jobID).Scan(&command, &attempts, &maxRetries, &baseBackoff)
+	job, err := storage.GetJobByJobId(jobID)
 	if err != nil {
-		clilogger.LogError(fmt.Sprint("job not found with job id: ", jobID))
+		clilogger.LogError(err.Error())
 		return
 	}
 
-	cmd := exec.Command("sh", "-c", command)
+	cmd := exec.Command("sh", "-c", job.Command)
 	output, runErr := cmd.CombinedOutput()
 	outputStr := string(output)
 
 	if runErr == nil {
-		storage.DB.Exec(`
-			UPDATE jobs 
-			SET state='completed', output=?, locked_at=NULL, updated_at=datetime('now', '+05 hours', '+30 minutes')
-			WHERE id=?
-    `, outputStr, jobID)
-
+		storage.UpdateJobToComplete(jobID, outputStr)
 		clilogger.LogSuccess(fmt.Sprint("job completed with job id: ", jobID))
 	} else {
-		attempts++
+		job.Attempts++
 		clilogger.LogError(fmt.Sprint("job failed with job id: ", jobID))
 
-		if attempts >= maxRetries {
-			storage.DB.Exec(`
-				UPDATE jobs 
-				SET state='dead', attempts=?, output=?, locked_at=NULL
-				WHERE id=?
-      `, attempts, outputStr+"\nError: "+runErr.Error(), jobID)
-
+		if job.Attempts >= job.MaxRetries {
+			storage.UpdateJobToDead(job.ID, job.Attempts, outputStr, runErr)
 			clilogger.LogError(fmt.Sprint("job moved to dlq with job id: ", jobID))
 		} else {
 			delay := 1
-			for i := 0; i < attempts; i++ {
-				delay *= baseBackoff
+			for i := 0; i < job.Attempts; i++ {
+				delay *= job.BaseBackoff
 			}
-
 			next := time.Now().Add(time.Duration(delay) * time.Second)
-			storage.DB.Exec(`
-				UPDATE jobs 
-				SET state='failed', attempts=?, next_retry_at=?, output=?, locked_at=NULL
-				WHERE id=?
-      `, attempts, next.Format("2006-01-02 15:04:05"), outputStr+"\nError: "+runErr.Error(), jobID)
 
+			storage.UpdateJobToFailed(job.ID, job.Attempts, next, outputStr, runErr)
 			clilogger.LogAlert(fmt.Sprint("retry job with job id: ", jobID, " in ", delay, " seconds"))
 		}
 	}
